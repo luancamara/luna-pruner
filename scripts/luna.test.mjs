@@ -19,3 +19,12 @@ test('collapse: linhas repetitivas viram uma + contador', async () => {
   const t = ['a 1', 'a 2', 'a 3', 'b'].join('\n');
   assert.equal(collapse(t), 'a 1\n  (… +2 linhas similares)\nb');
 });
+
+test('ctxTokens: lê o usage do último turno do assistente (ignora sidechain)', async () => {
+  const { ctxTokens } = await import('./luna.mjs');
+  const { writeFileSync } = await import('node:fs');
+  const f = '/tmp/lp_ctx_test.jsonl';
+  const a = (id, u, side) => JSON.stringify({ type: 'assistant', isSidechain: side, message: { id, usage: u } });
+  writeFileSync(f, [a('1', { input_tokens: 5, cache_creation_input_tokens: 1000, cache_read_input_tokens: 9000 }), a('2', { input_tokens: 7, cache_creation_input_tokens: 500, cache_read_input_tokens: 150000 }), a('3', { input_tokens: 1, cache_read_input_tokens: 99 }, true)].join('\n'));
+  assert.equal(ctxTokens(f), 150507);
+});

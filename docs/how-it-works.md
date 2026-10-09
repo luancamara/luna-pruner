@@ -15,13 +15,13 @@ The Decisions API (`POST /v1/decisions`, model `gpt-6-luna`) answers typed quest
 7. If the result is not at least 10% smaller, return the original untouched. Otherwise write the full original to `${CLAUDE_PLUGIN_DATA}/raw/<tool_use_id>.txt` and emit `updatedToolOutput`.
 8. Any error (timeout 8s, HTTP error, bad key) is logged and nothing is emitted: fail-open.
 
-## UserPromptSubmit
+## UserPromptSubmit (context-size meter)
 
-If the transcript file is over `TRANSCRIPT_LIMIT` (400 KB, roughly 100k tokens), one `predicate` question asks whether the new prompt is about a clearly different topic than the last five prompts. Above 0.8 probability it emits a `systemMessage` suggesting `/compact` or `/clear`.
+`ctxTokens()` takes the last non-sidechain assistant `usage` in the transcript (input + cache creation + cache read) as the real context size. Below `LUNA_PRUNER_WARN_TOKENS` (150000) nothing happens. Above it, one `predicate` question asks Luna whether the new prompt is about a clearly different topic than the last five prompts (> 0.5 means yes), and a `systemMessage` suggests `/clear` (topic changed) or `/compact`. State in `${CLAUDE_PLUGIN_DATA}/state/<session>.json` prevents nagging: it warns again only after +75k tokens, and resets when the context shrinks. Without a working API key it still warns, based on size alone.
 
 ## Tuning
 
-Constants at the top of `scripts/luna.mjs` (`MIN_CHARS`, `CHUNK_LINES`, `DROP_BELOW`, `TIMEOUT_MS`, `TRANSCRIPT_LIMIT`, `KEEP_RE`, `SECRET_RE`). There is no config file yet; a PR adding env overrides is welcome.
+Constants at the top of `scripts/luna.mjs` (`MIN_CHARS`, `CHUNK_LINES`, `DROP_BELOW`, `TIMEOUT_MS`, `KEEP_RE`, `SECRET_RE`). Env: `LUNA_PRUNER_WARN_TOKENS`, `LUNA_PRUNER_OFF`. PRs adding more overrides are welcome.
 
 ## Known gaps
 

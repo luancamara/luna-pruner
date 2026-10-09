@@ -10,7 +10,8 @@ const CHUNK_LINES = 20;
 const MAX_CHUNKS = 40;
 const DROP_BELOW = 0.5; // score 0-3
 const TIMEOUT_MS = 8000;
-const TRANSCRIPT_LIMIT = 400_000; // bytes ~ 100k tokens
+const WARN_TOKENS = +process.env.LUNA_PRUNER_WARN_TOKENS || 150_000; // acima disso cada turno relê um histórico caro
+const RENAG_TOKENS = 75_000; // só avisa de novo depois de crescer isso
 const KEEP_RE = /error|exception|traceback|fatal|fail|panic|denied|\bat .+:\d+/i; // nunca podar
 const SECRET_RE = /\.env\b|credentials|auth\.json|BEGIN [A-Z ]*PRIVATE KEY|(api[_-]?key|secret|token|password)\w*\s*[=:]\s*\S{8,}|sk-[A-Za-z0-9]{20,}/i;
 const DATA = process.env.CLAUDE_PLUGIN_DATA || join(homedir(), '.claude/plugins/data/luna-pruner');
@@ -76,7 +77,7 @@ export function applyScores(chunks, scores, rawPath) {
   return parts.join('\n');
 }
 
-async function pruneText(text, prompt, id) {
+export async function pruneText(text, prompt, id) {
   log(`tool output ${text.length} chars, prompt ${prompt ? 'ok' : 'MISSING'}`);
   if (!prompt) return text; // sem tarefa conhecida não dá pra julgar relevância
   if (text.length < MIN_CHARS || SECRET_RE.test(text.slice(0, 20000))) return text;
@@ -104,6 +105,17 @@ function tailLines(path, bytes = 200_000) {
   const fd = openSync(path, 'r'), buf = Buffer.alloc(len);
   readSync(fd, buf, 0, len, size - len); closeSync(fd);
   return buf.toString('utf8').split('\n').filter(Boolean);
+}
+
+// Tamanho real do contexto = prompt do último turno do assistente (input + cache), vindo do campo usage.
+export function ctxTokens(path) {
+  for (const l of tailLines(path, 400_000).reverse()) {
+    try {
+      const e = JSON.parse(l), u = e.type === 'assistant' && !e.isSidechain && e.message?.usage;
+      if (u) return (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
+    } catch {}
+  }
+  return 0;
 }
 
 function userPrompts(path, n) {
@@ -149,17 +161,27 @@ async function main() {
       console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', updatedToolOutput: out } }));
     }
   } else if (ev.hook_event_name === 'UserPromptSubmit') {
-    let size = 0;
-    try { size = statSync(ev.transcript_path).size; } catch {} // 1º prompt: transcript ainda não existe
-    if (size < TRANSCRIPT_LIMIT) return;
-    const input = `Previous requests:\n${prompts.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nNew request:\n${ev.prompt}`;
-    const ans = await decide(input, [{
-      type: 'predicate', name: 'switched',
-      instructions: 'Is the new request about a clearly different topic or task than the previous requests, so the earlier conversation is no longer needed?',
-    }]);
-    if ((ans.switched?.probability ?? 0) > 0.8) {
-      console.log(JSON.stringify({ systemMessage: 'luna-pruner: contexto grande e assunto mudou. Considere `/compact` (com foco no que ainda importa) ou `/clear`.' }));
-    }
+    let ctx = 0;
+    try { ctx = ctxTokens(ev.transcript_path); } catch {} // 1º prompt: transcript ainda não existe
+    const stateFile = join(DATA, 'state', `${ev.session_id || 'x'}.json`);
+    let warned = 0;
+    try { warned = JSON.parse(readFileSync(stateFile, 'utf8')).warned; } catch {}
+    if (ctx < warned - 20_000) warned = 0; // contexto encolheu: houve /compact ou /clear
+    if (ctx < WARN_TOKENS || (warned && ctx < warned + RENAG_TOKENS)) return;
+    mkdirSync(join(DATA, 'state'), { recursive: true });
+    writeFileSync(stateFile, JSON.stringify({ warned: ctx }));
+    let switched = false;
+    try {
+      const input = `Previous requests:\n${prompts.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nNew request:\n${ev.prompt}`;
+      const ans = await decide(input, [{
+        type: 'predicate', name: 'switched',
+        instructions: 'Is the new request about a clearly different topic or task than the previous requests, so the earlier conversation is no longer needed?',
+      }]);
+      switched = (ans.switched?.probability ?? 0) > 0.5;
+    } catch {} // sem Luna ainda avisa pelo tamanho
+    const k = Math.round(ctx / 1000);
+    console.log(JSON.stringify({ systemMessage: `luna-pruner: contexto em ${k}k tokens (cada turno relê tudo isso). ` +
+      (switched ? 'O assunto mudou: `/clear` costuma ser melhor; ou `/compact`.' : 'Considere `/compact` com foco no que ainda importa.') }));
   }
 }
 

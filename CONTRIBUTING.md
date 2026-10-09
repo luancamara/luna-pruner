@@ -15,7 +15,8 @@ claude --plugin-dir .                    # try it in a real session (needs OPENA
 - Handle a tool-output shape that logs `unknown shape` in `luna.log` (attach the shape, never the content).
 - Env overrides for the constants in `scripts/luna.mjs`.
 - English (or configurable) marker text.
-- An evaluation script: tasks + noisy logs + expected kept lines, to measure recall.
+- Run `node scripts/audit.mjs` and `node evals/corpus.mjs` on your own transcripts and share (anonymized) numbers in Discussions: the findings so far come from one user.
+- A recall benchmark for output pruning: tasks + noisy logs + expected kept lines.
 - Ports of the idea to other agent hook systems.
 
 ## Pull requests

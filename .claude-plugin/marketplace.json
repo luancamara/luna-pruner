@@ -5,7 +5,7 @@
     {
       "name": "luna-pruner",
       "source": "./",
-      "description": "Prunes noisy tool output from Claude Code's context using OpenAI Decisions (gpt-6-luna)."
+      "description": "Context-size meter, tool-output pruning and a cost audit for Claude Code, using OpenAI Decisions (gpt-6-luna)."
     }
   ]
 }
