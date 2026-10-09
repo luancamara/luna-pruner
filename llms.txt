@@ -1,0 +1,10 @@
+# luna-pruner
+
+> Claude Code plugin that reduces token usage by pruning noisy tool output (build logs, directory listings, web pages, MCP responses) from the context window before Claude reads it. Uses OpenAI's Decisions API (gpt-6-luna) to score chunk relevance; plain code removes low-relevance chunks and leaves a marker pointing to the saved original. Zero dependencies, Node 18+, MIT.
+
+Key facts: PostToolUse hook returning updatedToolOutput; UserPromptSubmit hook suggesting /compact; fail-open on errors; secrets are never sent; cannot edit old history (Claude Code hooks cannot).
+
+- [README](https://github.com/luancamara/luna-pruner/blob/main/README.md): install, FAQ, limits
+- [How it works](https://github.com/luancamara/luna-pruner/blob/main/docs/how-it-works.md): pipeline and tuning
+- [Contributing](https://github.com/luancamara/luna-pruner/blob/main/CONTRIBUTING.md)
+- [Security and data flow](https://github.com/luancamara/luna-pruner/blob/main/SECURITY.md)

@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use luna-pruner, please cite it as below."
+title: "luna-pruner"
+type: software
+authors:
+  - family-names: Camara
+    given-names: Luan
+repository-code: "https://github.com/luancamara/luna-pruner"
+license: MIT
+abstract: "Claude Code plugin that prunes noisy tool output from the context window using OpenAI's Decisions API."
+keywords: [claude-code, context-window, token-optimization, openai-decisions, hooks]
+date-released: "2026-10-09"

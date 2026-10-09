@@ -1,0 +1,20 @@
+name: Bug report
+description: Output pruned wrongly, hook errors, unhandled tool shape
+labels: [bug]
+body:
+  - type: input
+    id: versions
+    attributes: { label: "Claude Code version / Node version / OS" }
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened vs. what you expected
+      description: Which tool ran, roughly how large was the output, what was wrongly cut or not cut.
+    validations: { required: true }
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant lines from luna.log
+      description: In ${CLAUDE_PLUGIN_DATA}/luna.log. Redact anything sensitive.
+      render: text

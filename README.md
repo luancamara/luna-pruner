@@ -1,17 +1,24 @@
-# luna-pruner
+# luna-pruner: reduce Claude Code token usage by pruning noisy tool output
 
-A [Claude Code](https://code.claude.com) plugin that keeps noisy tool output out of Claude's context, using OpenAI's [Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`gpt-6-luna`) as the relevance judge.
+**luna-pruner** is a [Claude Code](https://code.claude.com) plugin that keeps long, noisy tool output (build logs, `ls` dumps, scraped pages, verbose MCP responses) out of Claude's context window. It uses OpenAI's [Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`gpt-6-luna`) to judge relevance, then plain code cuts the noise **before Claude reads it**.
 
-Long `npm install` logs, `ls` dumps, scraped pages and verbose MCP responses burn tokens and bury the one line that matters. This plugin cuts the noise **before Claude reads it**.
+Result: fewer wasted tokens, less context rot, and the one line that matters stays visible.
 
-## How it works
+[![test](https://github.com/luancamara/luna-pruner/actions/workflows/test.yml/badge.svg)](https://github.com/luancamara/luna-pruner/actions/workflows/test.yml) ![license](https://img.shields.io/badge/license-MIT-blue) ![node](https://img.shields.io/badge/node-%E2%89%A518-green) ![deps](https://img.shields.io/badge/dependencies-0-brightgreen)
 
-Decisions returns typed answers (scores, probabilities), not text. So Luna **decides** and plain code **cuts**:
+## Before / after
 
-1. **PostToolUse** (`Bash`, `WebFetch`, `Grep`, `mcp__*`): outputs over ~6k chars are collapsed (runs of same-shaped lines become `… +N similar lines`), split into 20-line chunks, and Luna scores each chunk 0-3 for relevance to your latest request. Chunks scoring below 0.5 are replaced by a marker pointing at the full original, saved on disk. The first and last chunks and any chunk mentioning `error`/`exception`/`fail`/stack traces are always kept.
-2. **UserPromptSubmit**: when the transcript is large and your new prompt is about a clearly different topic, it shows a hint to run `/compact` or `/clear`.
+A `Bash` command printing 1,600 lines (800 × `npm WARN deprecated ...`, one real error line, 800 × `progress N/800`), as Claude sees it:
 
-Measured in live Claude Code sessions: a 67k-char log became 190 chars (the relevant line kept, ~300 tokens sent to Luna); a 99k-char `ls` listing became 57k and Claude recovered the answer via the original-file path in the marker. Decisions input costs $0.10 per 1M tokens, so this is typically fractions of a cent per session.
+```
+npm WARN deprecated pkg1@1.0.1: no longer supported
+  (… +799 linhas similares)
+auth.ts: session.user is undefined after login redirect
+progress 1/800 downloading
+  (… +799 linhas similares)
+```
+
+Measured in live Claude Code sessions: 67,731 chars → 190 chars, about 300 tokens sent to Luna. A 99k-char directory listing was cut to 57k, and Claude recovered the exact answer through the original-file path in the marker.
 
 ## Install
 
@@ -20,26 +27,54 @@ Measured in live Claude Code sessions: a 67k-char log became 190 chars (the rele
 /plugin install luna-pruner@luna-pruner
 ```
 
-Requires Node 18+ and `OPENAI_API_KEY` in the environment Claude Code starts from. Try without installing: `claude --plugin-dir ./luna-pruner`.
+Requirements: Node 18+ and `OPENAI_API_KEY` in the environment Claude Code starts from. To try it without installing: `claude --plugin-dir ./luna-pruner`.
 
-Set `LUNA_PRUNER_OFF=1` to disable. Logs and originals live in `${CLAUDE_PLUGIN_DATA}` (`luna.log`, `raw/`).
+Disable with `LUNA_PRUNER_OFF=1`. Logs and untouched originals are in `${CLAUDE_PLUGIN_DATA}` (`luna.log`, `raw/`).
 
-## Limits (read these)
+## How it works
 
-- **Hooks cannot edit history.** Claude Code gives no hook that deletes past messages or runs `/compact` / `/clear` for you. This plugin prunes *new* tool output and suggests compaction; it does not clean old context.
-- **Pruning can be wrong.** Chunk scoring can hide a relevant line. Mitigations: error-keyword safety net, first/last chunks kept, and the marker always points to the untouched original. If Claude seems to be missing something, ask it to read that file.
-- **Privacy.** Tool output is sent to OpenAI. Outputs that look like secrets (`.env`, `credentials`, private keys, `token=...` assignments, `sk-...`) are never sent, but check this fits your data policy.
-- **Fail-open.** Timeout (8s), API error, missing key or unknown output shape: the output passes through unchanged.
-- Decisions is in public beta; the API may change. Auth is an API key (ChatGPT login is not documented for this endpoint).
+OpenAI Decisions returns typed answers (scores and probabilities), not text. So Luna **decides** and code **cuts**. Details in [docs/how-it-works.md](docs/how-it-works.md).
 
-## Develop
+1. **PostToolUse hook** (`Bash`, `WebFetch`, `Grep`, `mcp__*`): outputs over ~6k chars are collapsed, split into 20-line chunks, and each chunk is scored 0-3 for relevance to your latest request. Low-scoring chunks are replaced by a marker pointing at the full original on disk. Returned to Claude via `updatedToolOutput`.
+2. **UserPromptSubmit hook**: when the transcript is large and your new prompt switches to a clearly different topic, it prints a hint to run `/compact` or `/clear`.
 
-```
-node --test scripts/luna.test.mjs
-```
+Cost: Decisions input is $0.10 per 1M tokens with no output charge, so a typical session costs fractions of a cent.
 
-One dependency-free script: `scripts/luna.mjs`. PRs welcome, especially: tool-output shapes that aren't handled (see `unknown shape` in `luna.log`), better chunking, an eval set.
+## FAQ
+
+**How do I reduce token usage in Claude Code?**
+Stop large tool outputs from entering the context. luna-pruner does this automatically with a `PostToolUse` hook; `/compact` and `/clear` handle old conversation.
+
+**Can a Claude Code hook delete old messages from the context?**
+No. Hooks can replace a tool's output before Claude sees it (`updatedToolOutput`) and add context, but they cannot edit history or trigger `/compact` / `/clear`. This plugin prunes new tool output and suggests compaction.
+
+**What is the OpenAI Decisions API?**
+`POST /v1/decisions`: fast classification/scoring with typed answers (`predicate`, `choice`, `score`). Only `gpt-6-luna` is available (public beta at time of writing). It does not generate text, so it cannot summarize.
+
+**Is it safe? Does it send my data to OpenAI?**
+Yes, tool output over the size threshold is sent to OpenAI for scoring. Output that looks like secrets (`.env`, `credentials`, private keys, `token=...`, `sk-...`) is never sent. See [SECURITY.md](SECURITY.md).
+
+**What if Luna prunes something important?**
+The first and last chunks and any chunk containing `error`, `exception`, `fail`, stack traces are always kept, and the marker names the untouched original so Claude can read it.
+
+**What happens if the API is down or the key is missing?**
+Fail-open: the output passes through unchanged.
+
+**Does it work with other agents (Cursor, Codex, Gemini CLI)?**
+Not today. It targets Claude Code's hook protocol. Ports are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Limits
+
+- Cannot clean old context (hooks cannot edit history).
+- Chunk-level scoring can be wrong; mitigations above.
+- Tool output leaves your machine. Check your data policy.
+- Decisions is in public beta and the API may change; auth is an API key.
+- Only the tools in the hook matcher are pruned; `Read` is excluded on purpose (pruning can break edits).
+
+## Contributing
+
+Issues and PRs are welcome: bug reports with a `luna.log` excerpt, unhandled tool-output shapes, better chunking, an evaluation set, ports to other agents. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE). If you use this in research or writing, cite via [CITATION.cff](CITATION.cff).

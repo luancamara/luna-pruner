@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/luancamara/luna-pruner/discussions
+    about: Ask usage questions or share results here
