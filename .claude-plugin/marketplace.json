@@ -1,0 +1,11 @@
+{
+  "name": "luna-pruner",
+  "owner": { "name": "Luan Camara" },
+  "plugins": [
+    {
+      "name": "luna-pruner",
+      "source": "./",
+      "description": "Prunes noisy tool output from Claude Code's context using OpenAI Decisions (gpt-6-luna)."
+    }
+  ]
+}

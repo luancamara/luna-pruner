@@ -1,0 +1,5 @@
+{
+  "name": "luna-pruner",
+  "version": "0.1.0",
+  "description": "Poda saídas de tools e sugere /compact usando OpenAI Decisions (gpt-6-luna)."
+}
