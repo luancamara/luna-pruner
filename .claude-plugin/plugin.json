@@ -1,5 +1,5 @@
 {
   "name": "luna-pruner",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Context-size meter, noisy tool-output pruning and a cost audit for Claude Code, using OpenAI Decisions (gpt-6-luna)."
 }

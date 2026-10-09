@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Gasto (chamadas à Luna) vs economia (tokens que deixaram de ir pro contexto), em tokens, USD e R$.
-// Uso: node scripts/stats.mjs [--days N] [--brl 5.40] [--prices arquivo.json]
+// Uso: node scripts/stats.mjs [--days N] [--brl 5.40] [--prices arquivo.json] [--plain|--color] [--width N]
 // Economia = tokens podados escritos no cache 1x + relidos em cada turno seguinte (até a próxima compactação).
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { render } from './stats-render.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const days = +arg('--days', 0);
@@ -20,7 +21,7 @@ for (const d of new Set(dataDirs)) {
 }
 const since = days ? Date.now() - days * 864e5 : 0;
 const ev = events.filter((e) => e.ts >= since);
-if (!ev.length) { console.log('Sem eventos ainda. Use o plugin em uma sessão (saídas grandes de tools) e rode de novo.'); process.exit(0); }
+
 
 let brl = +arg('--brl', 0), brlSrc = 'informado';
 if (!brl) { try { const r = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL', { signal: AbortSignal.timeout(3000) }); brl = +(await r.json()).USDBRL.bid; brlSrc = 'awesomeapi (cotação de agora)'; } catch { brl = 0; } }
@@ -59,13 +60,14 @@ for (const e of ev) {
     (byDay[new Date(e.ts).toISOString().slice(0, 10)] ??= { spent: 0, saved: 0 }).saved += usd;
   }
 }
-const spentUsd = spentTok * P.luna_input / 1e6, net = saved.usd - spentUsd;
-const money = (usd) => `US$ ${usd.toFixed(4)}${brl ? `  (R$ ${(usd * brl).toFixed(4)})` : ''}`;
-console.log(`\nluna-pruner: estatísticas${days ? ` dos últimos ${days} dias` : ''}\n`);
-console.log(`GASTO (Luna)       ${spentCalls} chamadas, ${spentTok.toLocaleString('pt-BR')} tokens de entrada → ${money(spentUsd)}`);
-console.log(`ECONOMIA (poda)    ${nPrune} de ${nSent} saídas grandes podadas: ${Math.round(saved.tok).toLocaleString('pt-BR')} tokens fora do contexto`);
-console.log(`                   + ${Math.round(saved.rereads).toLocaleString('pt-BR')} tokens-releitura evitados nos turnos seguintes → ${money(saved.usd)}`);
-console.log(`SALDO              ${money(net)}   ${spentUsd ? `(${(saved.usd / spentUsd).toFixed(1)}x o que gastou)` : ''}`);
-console.log(`Avisos de contexto ${warns} (economia não mensurável: depende de você compactar)`);
-console.table(Object.fromEntries(Object.entries(byTool).map(([k, v]) => [k, { saídas: v.n, 'tokens podados': Math.round(v.tok), 'economia US$': +v.usd.toFixed(4) }])));
-console.log(`\nPremissas: ${CHARS_PER_TOKEN} chars/token (estimativa); preços de scripts/prices.json (${P._aviso.split(':')[0]}); cache escrito 1x + relido a cada turno seguinte até a compactação; ${noTranscript ? noTranscript + ' saída(s) sem transcript → contadas só 1x; ' : ''}${brl ? `câmbio ${brl.toFixed(2)} (${brlSrc})` : 'sem câmbio (use --brl 5.40)'}.\n`);
+const spentUsd = spentTok * P.luna_input / 1e6;
+const wantColor = process.argv.includes('--color') || (!process.argv.includes('--plain') && !process.env.NO_COLOR && (process.stdout.isTTY || process.env.FORCE_COLOR));
+const columns = +arg('--width', 0) || process.stdout.columns || 80;
+const notes = [
+  `${CHARS_PER_TOKEN} chars/token (estimativa)`,
+  'preços de terceiros: confira scripts/prices.json',
+  'cache escrito 1x + relido a cada turno até compactar',
+  ...(noTranscript ? [`${noTranscript} saída(s) sem transcript, contadas 1x`] : []),
+  brl ? `câmbio ${brl.toFixed(2)} (${brlSrc})` : 'sem câmbio: use --brl 5.40',
+];
+console.log(render({ days, calls: spentCalls, spentTok, spentUsd, nPrune, nSent, savedTok: saved.tok, rereads: saved.rereads, savedUsd: saved.usd, warns, byTool, byDay, brl, notes }, { color: wantColor, columns }));

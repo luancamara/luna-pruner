@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Painel de gasto x economia do luna-pruner, direto no terminal. Uso: luna-stats [--days N] [--brl 5.40] [--plain]
+exec node "$(dirname "$0")/../scripts/stats.mjs" "$@"

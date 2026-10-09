@@ -70,6 +70,41 @@ Not today. It targets Claude Code's hook protocol. Ports are welcome, see [CONTR
 
 ## Stats: spent vs saved
 
+```
+luna-stats              # colored dashboard in a real terminal
+! luna-stats --color    # inside Claude Code, straight to your screen, no model turn
+/luna-pruner:luna-stats # same panel through the model (costs one turn)
+luna-stats --days 7 --brl 5.40 --plain --width 100
+```
+
+Synthetic example (fixture data, not real usage):
+
+```
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ ◆ luna-pruner  ·  gasto × economia  ·  todo o período                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ SALDO LÍQUIDO
+   US$ 0,0485  ≈ R$ 0,24   ▲ 486× o que gastou
+
+╭─ Economia ─────────────╮ ╭─ Gasto Luna ───────────╮ ╭─ Podadas ──────────────╮
+│ 9,0 mil tok            │ │ 1,0 mil tok            │ │ 1 de 1                 │
+│ US$ 0,0486             │ │ US$ 0,0001             │ │ 100% das grandes       │
+│ +18,0 mil releit.      │ │ 1 chamada              │ │ 1 aviso de ctx         │
+╰────────────────────────╯ ╰────────────────────────╯ ╰────────────────────────╯
+
+ ECONOMIA POR FERRAMENTA
+  Bash           ██████████████████████████████████  9,0 mil  US$ 0,0486   1×
+
+ POR DIA   █  economia
+  10-09  ████████████████████████████████████████  US$ 0,0486   −US$ 0,0001
+
+  3.6 chars/token (estimativa)
+  preços de terceiros: confira scripts/prices.json
+  cache escrito 1x + relido a cada turno até compactar
+  câmbio 5.00 (informado)
+```
+
 Every Luna call and every large output is logged to `${CLAUDE_PLUGIN_DATA}/events.jsonl` (sizes and counts only, never content). `scripts/stats.mjs` joins that with your transcripts: tokens removed are counted once as a cache write plus once per following turn as a cache read, until the next compaction, priced from `scripts/prices.json`. Luna spend counts **every** call, including those that pruned nothing. USD to BRL uses a live rate (or `--brl`). The prices in `prices.json` come from third-party sites; check them against Anthropic's pricing page and edit. The context-size hints are not counted as savings, since that depends on you compacting.
 
 ## Limits

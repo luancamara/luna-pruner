@@ -6,7 +6,7 @@ Thanks for helping. This is a small, dependency-free project; keep it that way u
 
 ```
 git clone https://github.com/luancamara/luna-pruner && cd luna-pruner
-node --test scripts/luna.test.mjs        # unit tests, no network
+node --test scripts/luna.test.mjs scripts/stats-render.test.mjs        # unit tests, no network
 claude --plugin-dir .                    # try it in a real session (needs OPENAI_API_KEY)
 ```
 
