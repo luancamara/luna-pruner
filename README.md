@@ -71,11 +71,13 @@ Not today. It targets Claude Code's hook protocol. Ports are welcome, see [CONTR
 ## Stats: spent vs saved
 
 ```
-luna-stats              # colored dashboard in a real terminal
-! luna-stats --color    # inside Claude Code, straight to your screen, no model turn
-/luna-pruner:luna-stats # same panel through the model (costs one turn)
-luna-stats --days 7 --brl 5.40 --plain --width 100
+/luna-stats             # native colored panel drawn inside the conversation (mod API, no model turn)
+/luna-stats --days 7    # last 7 days; --brl 5.40 to set the exchange rate
+luna-stats              # same dashboard in a plain terminal (colors auto-detected)
+/luna-pruner:luna-stats # plain-text fallback through the model (costs one turn)
 ```
+
+`/luna-stats` uses Claude Code's experimental plugin "mod" API (`modules` in `hooks/hooks.json`, tested on Claude Code 2.1.295). If your build lacks it, the shell and fallback commands above still work.
 
 Synthetic example (fixture data, not real usage):
 

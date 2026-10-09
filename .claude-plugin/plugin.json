@@ -1,5 +1,14 @@
 {
   "name": "luna-pruner",
-  "version": "0.3.0",
-  "description": "Context-size meter, noisy tool-output pruning and a cost audit for Claude Code, using OpenAI Decisions (gpt-6-luna)."
+  "version": "0.4.0",
+  "description": "Context-size meter, noisy tool-output pruning and a cost audit for Claude Code, using OpenAI Decisions (gpt-6-luna).",
+  "author": {
+    "name": "Luan Camara"
+  },
+  "keywords": [
+    "context",
+    "tokens",
+    "cost",
+    "hooks"
+  ]
 }

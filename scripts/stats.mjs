@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Gasto (chamadas à Luna) vs economia (tokens que deixaram de ir pro contexto), em tokens, USD e R$.
-// Uso: node scripts/stats.mjs [--days N] [--brl 5.40] [--prices arquivo.json] [--plain|--color] [--width N]
+// Uso: node scripts/stats.mjs [--days N] [--brl 5.40] [--prices arquivo.json] [--plain|--color] [--width N] [--json]
 // Economia = tokens podados escritos no cache 1x + relidos em cada turno seguinte (até a próxima compactação).
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -70,4 +70,6 @@ const notes = [
   ...(noTranscript ? [`${noTranscript} saída(s) sem transcript, contadas 1x`] : []),
   brl ? `câmbio ${brl.toFixed(2)} (${brlSrc})` : 'sem câmbio: use --brl 5.40',
 ];
-console.log(render({ days, calls: spentCalls, spentTok, spentUsd, nPrune, nSent, savedTok: saved.tok, rereads: saved.rereads, savedUsd: saved.usd, warns, byTool, byDay, brl, notes }, { color: wantColor, columns }));
+const R = { days, calls: spentCalls, spentTok, spentUsd, nPrune, nSent, savedTok: saved.tok, rereads: saved.rereads, savedUsd: saved.usd, warns, byTool, byDay, brl, notes };
+if (process.argv.includes('--json')) console.log(JSON.stringify(R));
+else console.log(render(R, { color: wantColor, columns }));

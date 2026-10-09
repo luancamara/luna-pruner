@@ -1,14 +1,29 @@
 {
+  "modules": [
+    "./stats-ui.tsx"
+  ],
   "hooks": {
     "PostToolUse": [
       {
         "matcher": "Bash|WebFetch|Grep|mcp__.*",
-        "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/luna.mjs", "timeout": 15 }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/luna.mjs\"",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
       {
-        "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/luna.mjs", "timeout": 15 }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/luna.mjs\"",
+            "timeout": 15
+          }
+        ]
       }
     ]
   }

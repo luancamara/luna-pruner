@@ -1,11 +1,17 @@
 {
   "name": "luna-pruner",
-  "owner": { "name": "Luan Camara" },
+  "owner": {
+    "name": "Luan Camara"
+  },
   "plugins": [
     {
       "name": "luna-pruner",
       "source": "./",
-      "description": "Context-size meter, tool-output pruning and a cost audit for Claude Code, using OpenAI Decisions (gpt-6-luna)."
+      "description": "Context-size meter, tool-output pruning and a cost audit for Claude Code, using OpenAI Decisions (gpt-6-luna).",
+      "author": {
+        "name": "Luan Camara"
+      }
     }
-  ]
+  ],
+  "description": "Context-size meter, tool-output pruning, cost audit and a native stats dashboard for Claude Code."
 }
