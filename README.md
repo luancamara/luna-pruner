@@ -1,10 +1,11 @@
 # luna-pruner: cut Claude Code token costs with a context-size meter, output pruning and a cost audit
 
-**luna-pruner** is a [Claude Code](https://code.claude.com) plugin with three parts, ordered by how much they matter in real transcripts:
+**luna-pruner** is a [Claude Code](https://code.claude.com) plugin with four parts, ordered by how much they matter in real transcripts:
 
 1. **Context-size meter** (UserPromptSubmit): reads the real context size and, past ~150k tokens, tells you to `/compact` or `/clear` (Luna decides which, from whether your new prompt switches topic). Long histories re-read every turn were ~80% of the cost in the transcripts I measured.
-2. **Cost audit** (`node scripts/audit.mjs`): 100% local report of where your Claude Code spend goes: context size, fixed prefix, injected hooks/skills/MCP names, biggest tool outputs.
-3. **Output pruning** (PostToolUse): keeps long, noisy tool output out of the context. OpenAI's [Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`gpt-6-luna`) scores relevance, plain code cuts, a marker points to the untouched original. Valuable for log-heavy work, small on data/code-heavy sessions.
+2. **Stats** (`/luna-pruner:luna-stats`): spent on Luna vs saved, in tokens, USD and BRL, from the plugin's own event log.
+3. **Cost audit** (`node scripts/audit.mjs`): 100% local report of where your Claude Code spend goes: context size, fixed prefix, injected hooks/skills/MCP names, biggest tool outputs.
+4. **Output pruning** (PostToolUse): keeps long, noisy tool output out of the context. OpenAI's [Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`gpt-6-luna`) scores relevance, plain code cuts, a marker points to the untouched original. Valuable for log-heavy work, small on data/code-heavy sessions.
 
 Read [docs/findings.md](docs/findings.md) for the numbers, including what did **not** work and how this combines with RTK and Caveman.
 
@@ -33,7 +34,7 @@ Synthetic noisy logs: 67,731 chars → 190 chars. On 3 real sessions only 6 of 6
 
 Requirements: Node 18+ and `OPENAI_API_KEY` in the environment Claude Code starts from. To try it without installing: `claude --plugin-dir ./luna-pruner`.
 
-Disable with `LUNA_PRUNER_OFF=1`. Cost audit: `node scripts/audit.mjs [sessions] [projects-dir]`. Logs and untouched originals are in `${CLAUDE_PLUGIN_DATA}` (`luna.log`, `raw/`).
+Disable with `LUNA_PRUNER_OFF=1`. Cost audit: `node scripts/audit.mjs [sessions] [projects-dir]`. Stats: `/luna-pruner:luna-stats [--days N] [--brl 5.40]` or `node scripts/stats.mjs`. Logs and untouched originals are in `${CLAUDE_PLUGIN_DATA}` (`luna.log`, `raw/`).
 
 ## How it works
 
@@ -66,6 +67,10 @@ Fail-open: the output passes through unchanged.
 
 **Does it work with other agents (Cursor, Codex, Gemini CLI)?**
 Not today. It targets Claude Code's hook protocol. Ports are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Stats: spent vs saved
+
+Every Luna call and every large output is logged to `${CLAUDE_PLUGIN_DATA}/events.jsonl` (sizes and counts only, never content). `scripts/stats.mjs` joins that with your transcripts: tokens removed are counted once as a cache write plus once per following turn as a cache read, until the next compaction, priced from `scripts/prices.json`. Luna spend counts **every** call, including those that pruned nothing. USD to BRL uses a live rate (or `--brl`). The prices in `prices.json` come from third-party sites; check them against Anthropic's pricing page and edit. The context-size hints are not counted as savings, since that depends on you compacting.
 
 ## Limits
 

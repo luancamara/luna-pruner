@@ -24,6 +24,9 @@ const LEVELS = [
 
 const log = (m) => { try { mkdirSync(DATA, { recursive: true }); appendFileSync(join(DATA, 'luna.log'), `${new Date().toISOString()} ${m}\n`); } catch {} };
 
+const meta = {}; // sessão/tool atuais, para etiquetar eventos
+const event = (o) => { try { mkdirSync(DATA, { recursive: true }); appendFileSync(join(DATA, 'events.jsonl'), JSON.stringify({ ts: Date.now(), session_id: meta.session_id, transcript_path: meta.transcript_path, ...o }) + '\n'); } catch {} };
+
 export async function decide(input, questions) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('no OPENAI_API_KEY');
@@ -36,6 +39,7 @@ export async function decide(input, questions) {
   if (!r.ok) throw new Error(`decisions ${r.status}`);
   const j = await r.json();
   log(`usage ${j.usage?.input_tokens ?? '?'} tokens`);
+  event({ type: 'luna', purpose: meta.purpose, tokens: j.usage?.input_tokens ?? 0 });
   return Object.fromEntries(j.answers.map((a) => [a.name, a]));
 }
 
@@ -92,10 +96,11 @@ export async function pruneText(text, prompt, id) {
   const scores = chunks.map((_, i) => ans[`c${i}`]?.score);
   const rawPath = join(DATA, 'raw', `${id}.txt`);
   const pruned = applyScores(chunks, scores, rawPath);
-  if (pruned.length >= text.length * 0.9) return text; // não vale a pena
+  if (pruned.length >= text.length * 0.9) { event({ type: 'prune', tool_use_id: id, tool: meta.tool, before: text.length, after: text.length }); return text; } // não vale a pena
   mkdirSync(join(DATA, 'raw'), { recursive: true });
   writeFileSync(rawPath, text);
   log(`pruned ${text.length} -> ${pruned.length}`);
+  event({ type: 'prune', tool_use_id: id, tool: meta.tool, before: text.length, after: pruned.length });
   return pruned;
 }
 
@@ -150,6 +155,7 @@ async function mapResponse(resp, fn) {
 async function main() {
   if (process.env.LUNA_PRUNER_OFF === '1') return;
   const ev = JSON.parse(readFileSync(0, 'utf8'));
+  Object.assign(meta, { session_id: ev.session_id, transcript_path: ev.transcript_path, tool: ev.tool_name, purpose: ev.hook_event_name === 'PostToolUse' ? 'prune' : 'topic' });
   let prompts = [];
   try { prompts = ev.transcript_path ? userPrompts(ev.transcript_path, 5) : []; } catch {}
 
@@ -179,6 +185,7 @@ async function main() {
       }]);
       switched = (ans.switched?.probability ?? 0) > 0.5;
     } catch {} // sem Luna ainda avisa pelo tamanho
+    event({ type: 'warn', ctx_tokens: ctx, switched });
     const k = Math.round(ctx / 1000);
     console.log(JSON.stringify({ systemMessage: `luna-pruner: contexto em ${k}k tokens (cada turno relê tudo isso). ` +
       (switched ? 'O assunto mudou: `/clear` costuma ser melhor; ou `/compact`.' : 'Considere `/compact` com foco no que ainda importa.') }));

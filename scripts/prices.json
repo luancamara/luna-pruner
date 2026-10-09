@@ -1,0 +1,8 @@
+{
+  "_aviso": "USD por 1M de tokens. Valores de SITES DE TERCEIROS (out/2026), nao da Anthropic: confira em platform.claude.com/docs/en/about-claude/pricing e edite. Modelo ausente cai em _fallback.",
+  "luna_input": 0.10,
+  "claude-opus-5-5": { "in": 4, "out": 20, "cw": 5, "cr": 0.2 },
+  "claude-fable-5-1": { "in": 10, "out": 50, "cw": 12.5, "cr": 0.25 },
+  "claude-sonnet-5-5": { "in": 2, "out": 10, "cw": 2.5, "cr": 0.2 },
+  "_fallback": "claude-opus-5-5"
+}

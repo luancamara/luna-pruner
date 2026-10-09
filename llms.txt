@@ -6,6 +6,7 @@ Key facts: PostToolUse hook returning updatedToolOutput; UserPromptSubmit hook s
 
 - [README](https://github.com/luancamara/luna-pruner/blob/main/README.md): install, FAQ, limits
 - [Findings with measurements (what saves tokens, what does not, RTK, Caveman)](https://github.com/luancamara/luna-pruner/blob/main/docs/findings.md)
+- Stats command `/luna-pruner:luna-stats`: spent on Luna vs saved, in tokens, USD and BRL
 - [How it works](https://github.com/luancamara/luna-pruner/blob/main/docs/how-it-works.md): pipeline and tuning
 - [Contributing](https://github.com/luancamara/luna-pruner/blob/main/CONTRIBUTING.md)
 - [Security and data flow](https://github.com/luancamara/luna-pruner/blob/main/SECURITY.md)
